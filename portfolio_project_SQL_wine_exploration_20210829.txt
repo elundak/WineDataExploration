@@ -1,0 +1,160 @@
+-- Looking At Wine Data from Kaggle Dataset "Wine Reviews" posted by user zackthoutt
+-- Data analyzed with Microsoft SQL Server Management Studio 18 
+-- Purpose is to practice SQL queries and data exploration
+-- Completed by Eli Lundak 20210829
+
+
+--Verifying that Importing Dataset from csv to MSSQL Servor worked correctly
+SELECT *
+FROM PortfolioProject.dbo.WineData
+
+-- Data Cleaning and Exploration
+--looking at the data it appears duplicates are present as some wines have the exact same description, despite a different primary key (column1)
+--we will select for unique descriptions to remove duplicates, and join this on the original table as a new table
+
+SELECT 
+	WineData.column1, 
+	WineData.country, 
+	WineData.description, 
+	WineData.designation, 
+	WineData.points, 
+	WineData.price, 
+	WineData.province, 
+	WineData.region_1, 
+	WineData.region_2,
+	WineData.variety, 
+	WineData.winery
+INTO WineDataCleaned
+FROM WineData AS WineData
+JOIN (
+SELECT MIN(column1) AS WineID
+FROM WineData
+GROUP BY description
+) AS WineDataCleaned ON WineData.column1 = WineDataCleaned.WineID 
+
+
+--Can I query and use WineDataCleaned? How many results present now?
+SELECT *
+FROM WineDataCleaned
+
+SELECT COUNT (distinct(column1))
+FROM WineDataCleaned
+
+--It worked!
+
+--verify points are between 0 - 100
+SELECT Count(*)
+FROM WineDataCleaned 
+WHERE points>100 
+--Returns 0, good
+
+--How many countries in database?
+SELECT COUNT(DISTINCT (Country))
+FROM WineDataCleaned
+
+--what are the countries?
+SELECT DISTINCT (Country)
+FROM WineDataCleaned
+
+--What is average price of wine per country?
+
+SELECT Country, avg(price) AS CountryMeanBottlePrice
+FROM WineDataCleaned
+GROUP BY Country 
+ORDER BY CountryMeanBottlePrice DESC
+
+--What varietals are in this dataset? Any misspellings leading to two of the same wines next to each other?
+
+SELECT DISTINCT (variety)
+FROM WineDataCleaned
+ORDER BY VARIETY DESC
+
+--Average Price / Rating per variety?
+
+SELECT Variety, Avg(points) AS VarietyAvgPoints, Avg(price) AS VarietyAvgPrice
+FROM WineDataCleaned
+GROUP BY Variety
+ORDER BY VarietyAvgPoints DESC
+
+SELECT Variety, Avg(points) AS VarietyAvgPoints, Avg(price) AS VarietyAvgPrice
+FROM WineDataCleaned
+GROUP BY Variety
+ORDER BY VarietyAvgPrice DESC
+
+--what is the range of price?
+SELECT Min(price) AS MinPrice, Max(price) AS MaxPrice
+FROM WineDataCleaned
+
+--Break wine into different budget categories. What wine  should you buy if you have $X to spend?
+--Create temp table to work with
+
+SELECT Variety, Avg(points) AS VarietyAvgPoints, Avg(price) AS VarietyAvgPrice INTO AvgWineDataCleaned
+FROM WineDataCleaned
+GROUP BY Variety
+ORDER BY VarietyAvgPoints DESC
+
+-- testing temp table, still shows 632 varieties, looks like we have all of our data
+
+Select *
+FROM AvgWineDataCleaned
+ORDER BY VarietyAVgPoints DESC
+
+--Wines $10 and under
+SELECT *
+FROM AvgWineDataCleaned
+WHERE VarietyAvgPrice <10
+ORDER BY VarietyAvgPoints DESC
+
+-- Wines 10-20
+SELECT *
+FROM AvgWineDataCleaned
+WHERE VarietyAvgPrice <= 20 AND VarietyAvgPrice >= 10
+ORDER BY VarietyAvgPoints DESC
+
+-- Wines 20-50
+SELECT *
+FROM AvgWineDataCleaned
+WHERE VarietyAvgPrice <= 50 AND VarietyAvgPrice >= 20
+ORDER BY VarietyAvgPoints DESC
+
+--Wines 50-100
+SELECT *
+FROM AvgWineDataCleaned
+WHERE VarietyAvgPrice <= 100 AND VarietyAvgPrice >= 50
+ORDER BY VarietyAvgPoints DESC
+
+--Wines greater than 100
+SELECT *
+FROM AvgWineDataCleaned
+WHERE VarietyAvgPrice >= 100
+ORDER BY VarietyAvgPoints DESC
+
+--what is the price range for the top 10 rated varites?
+SELECT TOP 10 *
+FROM AvgWineDataCleaned
+ORDER BY VarietyAvgPoints DESC
+
+
+--Location Info: what provinces have the most varieties? The most highly rated wine? What is the min, max, and mean price per bottle per region?
+
+SELECT 
+	province, 
+	Avg (points) AS ProvinceAveragePoints, 
+	Min (points) AS ProvinceMinPoints, 
+	Max (points) AS ProvinceMaxPoints, 
+	Avg(price) AS ProvinceAveragePrice, 
+	Min (price) AS MinPriceProvince,
+	Max(price) as MaxPriceProvince, 
+	Count (distinct (variety)) AS VarietesPerProvince,
+	Count (price) AS ProvinceTotalBottles -- Count (price) should work for determining total number of bottles per province since it is grouped by province, and each bottle has a price to be counted
+FROM WineDataCleaned
+GROUP BY province
+ORDER BY ProvinceTotalBottles DESC
+
+
+--What if we want the cheapest possible wine for a given point value(for example, greater than or equal to 90)?
+SELECT * 
+FROM WineDataCleaned
+WHERE points >= 90 AND price IS NOT NULL
+ORDER BY price 
+
